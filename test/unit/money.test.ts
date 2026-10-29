@@ -127,7 +127,7 @@ describe('comparações e serialização', () => {
     expect(brl('10.00').isLessThan(brl('10.00'))).toBe(false);
   });
 
-  it('toJSON devolve o contrato da §6.1', () => {
+  it('toJSON devolve amount com escala fixa e a moeda', () => {
     expect(brl('25').toJSON()).toEqual({ amount: '25.00', currency: 'BRL' });
   });
 
