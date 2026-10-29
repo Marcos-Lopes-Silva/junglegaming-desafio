@@ -14,6 +14,8 @@
         "@types/node": "^24.0.0",
         "@wagering/application": "workspace:*",
         "@wagering/domain": "workspace:*",
+        "@wagering/domain": "workspace:*",
+        "@wagering/infrastructure": "workspace:*",
         "eslint": "^9.18.0",
         "eslint-config-prettier": "^10.0.1",
         "eslint-plugin-prettier": "^5.2.2",
@@ -36,6 +38,15 @@
       "version": "0.1.0",
       "dependencies": {
         "decimal.js": "^10.6.0",
+      },
+    },
+    "packages/infrastructure": {
+      "name": "@wagering/infrastructure",
+      "version": "0.1.0",
+      "dependencies": {
+        "@mikro-orm/core": "^7.2.5",
+        "@mikro-orm/migrations": "^7.2.5",
+        "@mikro-orm/postgresql": "^7.2.5",
       },
     },
   },
@@ -75,6 +86,8 @@
     "@lukeed/csprng": ["@lukeed/csprng@1.1.0", "", {}, "sha512-Z7C/xXCiGWsg0KuKsHTKJxbWhpI3Vs5GwLfOean7MGyVFGqdRgBbAjOCh6u4bbjPc/8MJ2pZmK/0DLdCbivLDA=="],
 
     "@mikro-orm/core": ["@mikro-orm/core@7.2.5", "", { "peerDependencies": { "dataloader": "2.2.3" }, "optionalPeers": ["dataloader"] }, "sha512-YF2q2Druxw4PQf/DoN1jZgYZdWfgQUWZWEapXIs0Oc/mC5HvD21nVncruDz2qMitmihro1oPhb9gI4LR5u8BEw=="],
+
+    "@mikro-orm/migrations": ["@mikro-orm/migrations@7.2.5", "", { "dependencies": { "@mikro-orm/sql": "7.2.5" }, "peerDependencies": { "@mikro-orm/core": "7.2.5" } }, "sha512-1nq+ger9gpPTTjxJF4GyrIXtTO/fhZGjlYjw6MSLcnVyCy0xoCMpz/cYYcz95J9HuT2tEInK41oi+ZUqIfTUEg=="],
 
     "@mikro-orm/postgresql": ["@mikro-orm/postgresql@7.2.5", "", { "dependencies": { "@mikro-orm/sql": "7.2.5", "kysely": "0.29.6", "pg": "8.23.1", "pg-cursor": "2.22.1", "postgres-array": "3.0.4", "postgres-date": "2.1.0", "postgres-interval": "4.1.0" }, "peerDependencies": { "@mikro-orm/core": "7.2.5" } }, "sha512-2mDdd3DBQLxtLIyzkNahwxeZdDeSbQjwnp26JRnElXkq6u/X5AUwBagbrf/iu9m3a83GvkP6xxOnGL4bPeAJNA=="],
 
@@ -123,6 +136,8 @@
     "@wagering/application": ["@wagering/application@workspace:packages/application"],
 
     "@wagering/domain": ["@wagering/domain@workspace:packages/domain"],
+
+    "@wagering/infrastructure": ["@wagering/infrastructure@workspace:packages/infrastructure"],
 
     "acorn": ["acorn@8.19.0", "", { "bin": { "acorn": "bin/acorn" } }, "sha512-oJlA3XiRm7Cyk6qFD2Jn8ak9B7jSy0qy00ADO3+8dpT0LSjFihQYv4C02LFCSYJV3Q37xYwwRy5m+IpIiUzqWw=="],
 
