@@ -16,6 +16,28 @@ export class WalletAlreadyExistsError extends DomainError {
   }
 }
 
+/**
+ * Mesma chave de idempotência com payload diferente. Responder como replay
+ * faria o provedor achar que a segunda requisição foi aplicada.
+ */
+export class IdempotencyConflictError extends DomainError {
+  readonly code = 'IDEMPOTENCY_PAYLOAD_MISMATCH';
+
+  constructor(idempotencyKey: string) {
+    super(
+      `idempotency key ${idempotencyKey} was already used with a different payload`,
+    );
+  }
+}
+
+export class WagerTransactionNotFoundError extends DomainError {
+  readonly code = 'TRANSACTION_NOT_FOUND';
+
+  constructor(reference: string) {
+    super(`wager transaction ${reference} not found`);
+  }
+}
+
 export class InvalidLedgerCursorError extends DomainError {
   readonly code = 'INVALID_LEDGER_CURSOR';
 
