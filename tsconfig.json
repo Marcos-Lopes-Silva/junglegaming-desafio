@@ -25,16 +25,15 @@
     "forceConsistentCasingInFileNames": true,
     "noEmit": true,
 
-    "baseUrl": ".",
     "paths": {
-      "@wagering/domain": ["packages/domain/src/index.ts"],
-      "@wagering/domain/*": ["packages/domain/src/*"],
-      "@wagering/application": ["packages/application/src/index.ts"],
-      "@wagering/application/*": ["packages/application/src/*"],
-      "@wagering/infrastructure": ["packages/infrastructure/src/index.ts"],
-      "@wagering/infrastructure/*": ["packages/infrastructure/src/*"],
-      "@wagering/wiring": ["packages/wiring/src/index.ts"],
-      "@wagering/wiring/*": ["packages/wiring/src/*"]
+      "@wagering/domain": ["./packages/domain/src/index.ts"],
+      "@wagering/domain/*": ["./packages/domain/src/*"],
+      "@wagering/application": ["./packages/application/src/index.ts"],
+      "@wagering/application/*": ["./packages/application/src/*"],
+      "@wagering/infrastructure": ["./packages/infrastructure/src/index.ts"],
+      "@wagering/infrastructure/*": ["./packages/infrastructure/src/*"],
+      "@wagering/wiring": ["./packages/wiring/src/index.ts"],
+      "@wagering/wiring/*": ["./packages/wiring/src/*"]
     }
   },
   "include": ["apps/**/*.ts", "packages/**/*.ts", "test/**/*.ts", "scripts/**/*.ts"]
