@@ -51,6 +51,7 @@ try {
     AWS_ACCESS_KEY_ID: 'test',
     AWS_SECRET_ACCESS_KEY: 'test',
     LOG_LEVEL: 'silent',
+    SQS_WAIT_TIME_SECONDS: '2',
   });
 } catch (error) {
   console.error(error instanceof Error ? error.message : error);
