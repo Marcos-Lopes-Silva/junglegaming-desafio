@@ -22,6 +22,7 @@ import {
   type WageringHarness,
   buildWageringHarness,
   openWallet,
+  submitInput,
 } from './wagering.harness.js';
 
 let h: WageringHarness;
@@ -165,6 +166,152 @@ describe('consumo com dedup por inbox', () => {
     expect(h.metrics.latencies.some((entry) => entry.source === 'sqs')).toBe(
       true,
     );
+  });
+});
+
+describe('publisher da outbox', () => {
+  const enqueue = async (count: number) => {
+    const wallet = await openWallet(h, '1000.00');
+    for (let i = 0; i < count; i += 1) {
+      await h.submit.execute(
+        submitInput({
+          walletId: wallet.id,
+          kind: WagerTransactionKind.Bet,
+          amount: '1.00',
+          externalTransactionId: `bet-${i}`,
+        }),
+      );
+    }
+    return wallet;
+  };
+
+  it('publica as mensagens pendentes', async () => {
+    await enqueue(2);
+    const pending = h.outbox.messages.length;
+
+    const result = await h.publishOutbox.execute();
+
+    expect(result).toEqual({ published: pending, failed: 0 });
+    expect(h.publisher.published).toHaveLength(pending);
+    expect(h.outbox.messages.every((message) => !message.isPending())).toBe(
+      true,
+    );
+  });
+
+  it('respeita o limite do lote', async () => {
+    await enqueue(3);
+
+    const result = await h.publishOutbox.execute(2);
+
+    expect(result.published).toBe(2);
+  });
+
+  it('falha de publicação agenda retentativa com backoff', async () => {
+    await enqueue(1);
+    h.publisher.failTimes = 99;
+
+    const result = await h.publishOutbox.execute();
+
+    expect(result.failed).toBeGreaterThan(0);
+    expect(result.published).toBe(0);
+    expect(
+      h.metrics.retries.filter((stage) => stage === 'outbox').length,
+    ).toBeGreaterThan(0);
+
+    const [message] = h.outbox.messages;
+    expect(message?.isPending()).toBe(true);
+    expect(message?.attempts).toBe(1);
+    expect(message?.nextAttemptAt?.getTime()).toBeGreaterThan(
+      h.clock.now().getTime(),
+    );
+  });
+
+  it('a mensagem volta a ser publicada depois do backoff', async () => {
+    await enqueue(1);
+    const total = h.outbox.messages.length;
+    h.publisher.failTimes = 1;
+
+    expect(await h.publishOutbox.execute()).toEqual({
+      published: total - 1,
+      failed: 1,
+    });
+
+    expect((await h.publishOutbox.execute()).published).toBe(0);
+
+    h.clock.advance(3_000);
+    expect((await h.publishOutbox.execute()).published).toBe(1);
+    expect(h.outbox.messages.every((message) => !message.isPending())).toBe(
+      true,
+    );
+  });
+
+  it('publishers concorrentes não publicam a mesma mensagem', async () => {
+    // O dublê imita o FOR UPDATE SKIP LOCKED.
+    await enqueue(2);
+    const total = h.outbox.messages.length;
+
+    const [first, second] = await Promise.all([
+      h.publishOutbox.execute(total),
+      h.publishOutbox.execute(total),
+    ]);
+
+    expect(first.published + second.published).toBe(total);
+    expect(
+      new Set(h.publisher.published.map((message) => message.id)).size,
+    ).toBe(total);
+  });
+
+  it('reporta o outbox lag', async () => {
+    await enqueue(1);
+    h.clock.advance(5_000);
+
+    await h.publishOutbox.execute();
+
+    expect(h.metrics.outboxLagSeconds).toBe(0);
+  });
+});
+
+describe('backoff da outbox', () => {
+  it('cresce exponencialmente até o teto', async () => {
+    await openWallet(h, '100.00');
+    const outboxMessage = h.outbox.messages[0];
+    expect(outboxMessage).toBeDefined();
+
+    const now = h.clock.now();
+    const delays: number[] = [];
+
+    for (let i = 0; i < 6; i += 1) {
+      outboxMessage?.scheduleRetry(now);
+      delays.push(
+        (outboxMessage?.nextAttemptAt?.getTime() ?? 0) - now.getTime(),
+      );
+    }
+
+    expect(delays).toEqual([2_000, 4_000, 8_000, 16_000, 32_000, 60_000]);
+    expect(outboxMessage?.attempts).toBe(6);
+  });
+
+  it('isDue respeita a janela agendada', async () => {
+    await openWallet(h, '100.00');
+    const outboxMessage = h.outbox.messages[0];
+    const now = h.clock.now();
+
+    expect(outboxMessage?.isDue(now)).toBe(true);
+
+    outboxMessage?.scheduleRetry(now);
+    expect(outboxMessage?.isDue(now)).toBe(false);
+    expect(outboxMessage?.isDue(new Date(now.getTime() + 2_000))).toBe(true);
+  });
+
+  it('mensagem publicada deixa de ser elegível', async () => {
+    await openWallet(h, '100.00');
+    const outboxMessage = h.outbox.messages[0];
+    const now = h.clock.now();
+
+    outboxMessage?.markPublished(now);
+
+    expect(outboxMessage?.isPending()).toBe(false);
+    expect(outboxMessage?.isDue(now)).toBe(false);
   });
 });
 

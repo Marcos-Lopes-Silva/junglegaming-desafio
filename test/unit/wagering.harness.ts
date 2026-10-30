@@ -1,6 +1,7 @@
 import {
   ConsumeWagerMessageUseCase,
   OpenWalletUseCase,
+  PublishOutboxBatchUseCase,
   type SubmitWagerTransactionInput,
   type SubmitWagerTransactionResult,
   SubmitWagerTransactionUseCase,
@@ -13,6 +14,7 @@ import {
 } from '@wagering/domain';
 import {
   FakeClock,
+  FakeEventPublisher,
   FakeInboxRepository,
   FakeLedgerAccountRepository,
   FakeLedgerRepository,
@@ -37,12 +39,14 @@ export interface WageringHarness {
   submit: SubmitWagerTransactionUseCase;
   openWallet: OpenWalletUseCase;
   consume: ConsumeWagerMessageUseCase;
+  publishOutbox: PublishOutboxBatchUseCase;
   wallets: FakeWalletRepository;
   accounts: FakeLedgerAccountRepository;
   ledger: FakeLedgerRepository;
   transactions: FakeWagerTransactionRepository;
   inbox: FakeInboxRepository;
   outbox: FakeOutboxRepository;
+  publisher: FakeEventPublisher;
   metrics: FakeMetrics;
   clock: FakeClock;
   runner: PassthroughRunner;
@@ -56,6 +60,7 @@ export function buildWageringHarness(): WageringHarness {
   const transactions = new FakeWagerTransactionRepository();
   const inbox = new FakeInboxRepository();
   const outbox = new FakeOutboxRepository();
+  const publisher = new FakeEventPublisher();
   const metrics = new FakeMetrics();
   const clock = new FakeClock();
   const ids = new SequentialIds();
@@ -89,12 +94,20 @@ export function buildWageringHarness(): WageringHarness {
       hasher,
       metrics,
     }),
+    publishOutbox: new PublishOutboxBatchUseCase({
+      outbox,
+      publisher,
+      runner,
+      clock,
+      metrics,
+    }),
     wallets,
     accounts,
     ledger,
     transactions,
     inbox,
     outbox,
+    publisher,
     metrics,
     clock,
     runner,
