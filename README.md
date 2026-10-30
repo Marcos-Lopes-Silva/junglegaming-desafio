@@ -257,3 +257,7 @@ Os motivos estão no [`ARCHITECTURE.md`](./ARCHITECTURE.md):
   o publisher é o gargalo, e esta seria a melhor correção. Ficou como próximo
   passo;
 - **reversão parcial** — fora de escopo pelo enunciado.
+
+# Uso de IA
+
+Usei ferramentas de IA na escrita do código, dos testes de carga e da documentação. Revisei, executei e validei todas as partes.
