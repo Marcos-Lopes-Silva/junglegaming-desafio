@@ -1,0 +1,17 @@
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+scrape_configs:
+  - job_name: api
+    static_configs:
+      - targets: ['api:3000']
+
+  # Cada réplica do worker tem seu próprio registry do prom-client. Um alvo
+  # estático cairia em uma réplica só; o `dns_sd` com type A devolve o IP de
+  # todas as réplicas do serviço.
+  - job_name: worker
+    dns_sd_configs:
+      - names: ['worker']
+        type: A
+        port: 3001

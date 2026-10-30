@@ -1,0 +1,39 @@
+name: jungle-wagering-test
+
+# Infra dos testes de integração.
+#
+# Usa outras portas para rodar junto com o ambiente de desenvolvimento. Não tem
+# volume nomeado, então cada execução começa com o banco vazio.
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: wagering
+      POSTGRES_PASSWORD: wagering
+      POSTGRES_DB: wagering_test
+    ports:
+      - '55432:5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U wagering -d wagering_test']
+      interval: 1s
+      timeout: 3s
+      retries: 60
+    tmpfs:
+      - /var/lib/postgresql/data
+
+  localstack:
+    image: localstack/localstack:3
+    environment:
+      SERVICES: sqs
+      DEBUG: '0'
+    ports:
+      - '44566:4566'
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - 'awslocal sqs get-queue-url --queue-name wager-transactions.fifo || exit 1'
+      interval: 3s
+      timeout: 5s
+      retries: 40
+    volumes:
+      - ./infra/localstack/init-queues.sh:/etc/localstack/init/ready.d/init-queues.sh:ro

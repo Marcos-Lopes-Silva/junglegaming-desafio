@@ -1,0 +1,124 @@
+name: jungle-wagering
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: wagering
+      POSTGRES_PASSWORD: wagering
+      POSTGRES_DB: wagering
+    ports:
+      - '${POSTGRES_PORT:-5432}:5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U wagering -d wagering']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  localstack:
+    image: localstack/localstack:3
+    environment:
+      SERVICES: sqs
+      DEBUG: '0'
+    ports:
+      - '${LOCALSTACK_PORT:-4566}:4566'
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - 'awslocal sqs get-queue-url --queue-name wager-transactions.fifo || exit 1'
+      interval: 3s
+      timeout: 5s
+      retries: 40
+    volumes:
+      - ./infra/localstack/init-queues.sh:/etc/localstack/init/ready.d/init-queues.sh:ro
+
+  api:
+    build:
+      context: .
+      target: api
+    environment:
+      DATABASE_URL: postgresql://wagering:wagering@postgres:5432/wagering
+      AWS_SQS_ENDPOINT: http://localstack:4566
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      PORT: '3000'
+      LOG_LEVEL: info
+    ports:
+      - '${API_PORT:-3000}:3000'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'bun', '--eval', 'await fetch("http://localhost:3000/health/ready")']
+      interval: 3s
+      timeout: 5s
+      retries: 30
+
+  worker:
+    build:
+      context: .
+      target: worker
+    environment:
+      DATABASE_URL: postgresql://wagering:wagering@postgres:5432/wagering
+      AWS_SQS_ENDPOINT: http://localstack:4566
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      WORKER_PORT: '3001'
+      LOG_LEVEL: info
+    expose:
+      - '3001'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'bun', '--eval', 'await fetch("http://localhost:3001/health/ready")']
+      interval: 3s
+      timeout: 5s
+      retries: 30
+    # O worker escala separado da API. Várias réplicas são seguras: o inbox, o
+    # FOR UPDATE SKIP LOCKED e a reconferência de status evitam trabalho
+    # duplicado.
+    deploy:
+      replicas: 2
+    # Tempo para o consumidor terminar a mensagem atual antes do SIGKILL.
+    stop_grace_period: 30s
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.retention.time=2h'
+    ports:
+      - '${PROMETHEUS_PORT:-9090}:9090'
+    volumes:
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    depends_on:
+      - api
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      # Acesso anônimo, já que é só para uso local.
+      GF_AUTH_ANONYMOUS_ENABLED: 'true'
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_USERS_DEFAULT_THEME: light
+    ports:
+      - '${GRAFANA_PORT:-3001}:3000'
+    volumes:
+      - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infra/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+
+volumes:
+  postgres-data:
