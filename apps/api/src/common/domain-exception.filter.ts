@@ -49,7 +49,15 @@ export interface ErrorBody {
 }
 
 const TRANSIENT_CODES = new Set([
-  'ECONNREFUSED', 'ECONNRESET', 'ETIMEDOUT', 'EPIPE',
+  'ECONNREFUSED',
+  'ECONNRESET',
+  'ETIMEDOUT',
+  'EPIPE',
+  'EHOSTUNREACH',
+  'ENETUNREACH',
+  // com o container do postgres parado o hostname some do DNS do docker
+  'EAI_AGAIN',
+  'ENOTFOUND',
   '57P01', // admin_shutdown
   '57P03', // cannot_connect_now
   '53300', // too_many_connections
@@ -59,7 +67,10 @@ function isTransientInfraError(error: unknown): boolean {
   if (error instanceof ConnectionException) return true;
   const code = (error as { code?: string })?.code;
   if (code && (TRANSIENT_CODES.has(code) || code.startsWith('08'))) return true;
-  return error instanceof Error && /timeout acquiring a connection|connection terminated/i.test(error.message);
+  return (
+    error instanceof Error &&
+    /timeout acquiring a connection|connection terminated/i.test(error.message)
+  );
 }
 
 @Catch()
