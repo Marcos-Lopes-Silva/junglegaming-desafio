@@ -555,24 +555,25 @@ recusa `DELETE` por linha, e `TRUNCATE` não dispara triggers de linha.
 
 ## 11.1 O que o teste de carga mostrou
 
-Medido com `bun run test:load`. Duas fases, para medir quanto custa a serialização por
+Relatório completo em [`docs/load-test.md`](./docs/load-test.md), gerado por
+`bun run test:load`. Duas fases, para medir quanto custa a serialização por
 wallet.
 
 | Fase | Throughput | p50 | p99 |
 |---|---|---|---|
-| 600 reqs sobre 10 wallets | ~153 req/s | ~197 ms | ~400 ms |
-| 600 reqs sobre **1** wallet | ~103 req/s | ~303 ms | ~388 ms |
+| 600 reqs sobre 10 wallets | ~153 req/s | ~207 ms | ~333 ms |
+| 600 reqs sobre **1** wallet | ~78 req/s | ~389 ms | ~649 ms |
 
 **Custo do lock pessimista.** Concentrar tudo numa wallet
-derruba o throughput para ~67%, não para perto de zero, porque a seção crítica
-é curta — o lock cobre uma transação de poucos milissegundos, não a requisição
-inteira. O p99 inclusive melhora na fase concentrada: a fila do lock age como
-controle de admissão e reduz a variância.
+derruba o throughput para ~51%, não para perto de zero, porque a seção crítica
+é curta: o lock cobre uma transação de poucos milissegundos, não a requisição
+inteira. Já o p99 praticamente dobra, porque cada requisição espera na fila do
+lock pelas que chegaram antes.
 
 **O gargalo é o publisher da outbox.** A API recebeu 1200 requisições em
-~10 s, e a outbox levou ~51 s para drenar depois disso. O publisher envia uma
+~12 s, e a outbox levou ~49 s para drenar depois disso. O publisher envia uma
 mensagem por vez, em lotes de 20 a cada segundo — cerca de 20 eventos/s contra
-um ingresso de ~123 req/s com até 2 eventos cada.
+um ingresso de ~103 req/s com até 2 eventos cada.
 
 A melhor correção é trocar `SendMessage` por `SendMessageBatch` (o SQS aceita
 10 por chamada), depois lote maior com tick mais curto e, por último, mais

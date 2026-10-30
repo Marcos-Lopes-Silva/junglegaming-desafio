@@ -7,6 +7,8 @@ Resposta ao desafio técnico da Jungle Gaming, o enunciado original está em
 As decisões de projeto, trade-offs e limitações estão em
 [`ARCHITECTURE.md`](./ARCHITECTURE.md).
 
+O relatório do teste de carga está em [`docs/load-test.md`](./docs/load-test.md).
+
 ## Stack
 
 | Item | Escolha |
@@ -28,6 +30,7 @@ As decisões de projeto, trade-offs e limitações estão em
 
 ```bash
 bun install
+cp .env.example .env
 bun run docker:up        # postgres, localstack, api, 2 workers, prometheus, grafana
 bun run migration:up
 ```
