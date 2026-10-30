@@ -5,8 +5,11 @@ import {
 } from '@wagering/application';
 import {
   FailureCode,
+  PENDING_REFERENCE_MAX_ATTEMPTS,
   WagerTransactionKind,
   WagerTransactionStatus,
+  isPendingReferenceExhausted,
+  nextPendingReferenceAttemptAt,
 } from '@wagering/domain';
 import {
   MalformedMessageError,
@@ -21,6 +24,7 @@ import {
   ROUND,
   type WageringHarness,
   buildWageringHarness,
+  eventTypes,
   openWallet,
   submitInput,
 } from './wagering.harness.js';
@@ -268,6 +272,130 @@ describe('publisher da outbox', () => {
     await h.publishOutbox.execute();
 
     expect(h.metrics.outboxLagSeconds).toBe(0);
+  });
+});
+
+describe('worker de PENDING_REFERENCE', () => {
+  const parkRollback = async (walletId: string) =>
+    h.submit.execute(
+      submitInput({
+        walletId,
+        kind: WagerTransactionKind.Rollback,
+        amount: '25.00',
+        externalTransactionId: 'rollback-1',
+        referenceExternalTransactionId: 'bet-1',
+      }),
+    );
+
+  it('resolve a transação quando a referência finalmente chega', async () => {
+    const wallet = await openWallet(h, '100.00');
+    const parked = await parkRollback(wallet.id);
+    expect(parked.transaction.status).toBe(
+      WagerTransactionStatus.PendingReference,
+    );
+
+    await h.submit.execute(
+      submitInput({
+        walletId: wallet.id,
+        kind: WagerTransactionKind.Bet,
+        amount: '25.00',
+        externalTransactionId: 'bet-1',
+      }),
+    );
+    expect(wallet.balance.toString()).toBe('75.00');
+
+    h.clock.advance(3_000);
+    const result = await h.processPending.execute();
+
+    expect(result).toEqual({ examined: 1, settled: 1 });
+    expect(parked.transaction.status).toBe(WagerTransactionStatus.Processed);
+    expect(wallet.balance.toString()).toBe('100.00');
+  });
+
+  it('não toca na transação antes da janela de retentativa', async () => {
+    const wallet = await openWallet(h, '100.00');
+    await parkRollback(wallet.id);
+
+    const result = await h.processPending.execute();
+
+    expect(result).toEqual({ examined: 0, settled: 0 });
+  });
+
+  it('estaciona de novo quando a referência continua ausente', async () => {
+    const wallet = await openWallet(h, '100.00');
+    const parked = await parkRollback(wallet.id);
+    h.outbox.messages.length = 0;
+
+    h.clock.advance(3_000);
+    const result = await h.processPending.execute();
+
+    expect(result).toEqual({ examined: 1, settled: 0 });
+    expect(parked.transaction.status).toBe(
+      WagerTransactionStatus.PendingReference,
+    );
+    expect(parked.transaction.attempts).toBe(2);
+    // O evento não é republicado a cada tentativa.
+    expect(h.outbox.messages).toHaveLength(0);
+    expect(h.metrics.retries).toContain('pending-reference');
+  });
+
+  it('esgotado o TTL, rejeita com REFERENCE_NOT_FOUND e publica o evento', async () => {
+    const wallet = await openWallet(h, '100.00');
+    const parked = await parkRollback(wallet.id);
+    h.outbox.messages.length = 0;
+
+    h.clock.advance(11 * 60 * 1000);
+    const result = await h.processPending.execute();
+
+    expect(result).toEqual({ examined: 1, settled: 1 });
+    expect(parked.transaction.status).toBe(WagerTransactionStatus.Rejected);
+    expect(parked.transaction.failureCode).toBe(FailureCode.ReferenceNotFound);
+    expect(eventTypes(h)).toEqual(['WagerTransactionRejected']);
+    expect(wallet.balance.toString()).toBe('100.00');
+  });
+
+  it('a rejeição por TTL não mexe no saldo nem no ledger', async () => {
+    const wallet = await openWallet(h, '100.00');
+    await parkRollback(wallet.id);
+    const entriesBefore = h.ledger.entries.length;
+
+    h.clock.advance(11 * 60 * 1000);
+    await h.processPending.execute();
+
+    expect(h.ledger.entries).toHaveLength(entriesBefore);
+  });
+});
+
+describe('política de PENDING_REFERENCE', () => {
+  const start = new Date('2026-07-29T15:00:00.000Z');
+
+  it('backoff exponencial com teto de 60s', () => {
+    const delay = (attempts: number) =>
+      nextPendingReferenceAttemptAt(attempts, start).getTime() -
+      start.getTime();
+
+    expect(delay(1)).toBe(2_000);
+    expect(delay(2)).toBe(4_000);
+    expect(delay(3)).toBe(8_000);
+    expect(delay(10)).toBe(60_000);
+  });
+
+  it('esgota por número de tentativas', () => {
+    expect(
+      isPendingReferenceExhausted(
+        PENDING_REFERENCE_MAX_ATTEMPTS - 1,
+        start,
+        start,
+      ),
+    ).toBe(false);
+    expect(
+      isPendingReferenceExhausted(PENDING_REFERENCE_MAX_ATTEMPTS, start, start),
+    ).toBe(true);
+  });
+
+  it('esgota por TTL mesmo com poucas tentativas', () => {
+    const later = new Date(start.getTime() + 11 * 60 * 1000);
+    expect(isPendingReferenceExhausted(1, start, later)).toBe(true);
   });
 });
 

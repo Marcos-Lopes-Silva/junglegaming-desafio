@@ -4,6 +4,7 @@ import { CoreModule } from '@wagering/wiring';
 import { WagerConsumerService } from './consumer/wager-consumer.service.js';
 import { WorkerController } from './observability/worker.controller.js';
 import { OutboxPublisherService } from './schedulers/outbox-publisher.service.js';
+import { PendingReferenceService } from './schedulers/pending-reference.service.js';
 
 /**
  * Roda separado da API, para que o encerramento do consumidor no `SIGTERM`
@@ -12,6 +13,10 @@ import { OutboxPublisherService } from './schedulers/outbox-publisher.service.js
 @Module({
   imports: [ScheduleModule.forRoot(), CoreModule],
   controllers: [WorkerController],
-  providers: [WagerConsumerService, OutboxPublisherService],
+  providers: [
+    WagerConsumerService,
+    OutboxPublisherService,
+    PendingReferenceService,
+  ],
 })
 export class WorkerModule {}

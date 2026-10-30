@@ -1,6 +1,7 @@
 import {
   ConsumeWagerMessageUseCase,
   OpenWalletUseCase,
+  ProcessPendingReferencesUseCase,
   PublishOutboxBatchUseCase,
   type SubmitWagerTransactionInput,
   type SubmitWagerTransactionResult,
@@ -40,6 +41,7 @@ export interface WageringHarness {
   openWallet: OpenWalletUseCase;
   consume: ConsumeWagerMessageUseCase;
   publishOutbox: PublishOutboxBatchUseCase;
+  processPending: ProcessPendingReferencesUseCase;
   wallets: FakeWalletRepository;
   accounts: FakeLedgerAccountRepository;
   ledger: FakeLedgerRepository;
@@ -99,6 +101,15 @@ export function buildWageringHarness(): WageringHarness {
       publisher,
       runner,
       clock,
+      metrics,
+    }),
+    processPending: new ProcessPendingReferencesUseCase({
+      transactions,
+      wallets,
+      applier,
+      runner,
+      clock,
+      ids,
       metrics,
     }),
     wallets,

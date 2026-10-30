@@ -12,3 +12,4 @@ export * from './wagering/get-wager-transaction.usecase.js';
 
 export * from './messaging/consume-wager-message.usecase.js';
 export * from './messaging/publish-outbox-batch.usecase.js';
+export * from './messaging/process-pending-references.usecase.js';
