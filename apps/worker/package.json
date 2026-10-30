@@ -14,6 +14,9 @@
     "@wagering/domain": "workspace:*",
     "@wagering/infrastructure": "workspace:*",
     "@wagering/wiring": "workspace:*",
+    "nestjs-pino": "^5.3.1",
+    "pino": "^10.4.0",
+    "pino-http": "^11.0.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2"
   }

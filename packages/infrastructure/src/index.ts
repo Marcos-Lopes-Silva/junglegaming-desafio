@@ -15,6 +15,9 @@ export * from './repositories/outbox.repository.js';
 export * from './canonical/canonical-json.js';
 export * from './system.js';
 
+export * from './metrics/metrics.registry.js';
+export * from './logging/logger.config.js';
+
 export * from './sqs/sqs.client.js';
 export * from './sqs/sqs-event.publisher.js';
 export * from './sqs/message-envelope.js';

@@ -43,6 +43,7 @@ import {
   InboxRepository,
   LedgerAccountRepository,
   LedgerRepository,
+  MetricsRegistry,
   OutboxRepository,
   Sha256PayloadHasher,
   SqsEventPublisher,
@@ -57,7 +58,6 @@ import {
   readDatabaseOptions,
   readSqsOptions,
 } from '@wagering/infrastructure';
-import { NoopMetrics } from './noop-metrics.js';
 
 /**
  * Interfaces não existem em runtime, então cada port é registrado com um token
@@ -68,7 +68,7 @@ const adapters: Provider[] = [
   { provide: CLOCK, useClass: SystemClock },
   { provide: ID_GENERATOR, useClass: Uuidv7Generator },
   { provide: PAYLOAD_HASHER, useClass: Sha256PayloadHasher },
-  { provide: METRICS, useClass: NoopMetrics },
+  { provide: METRICS, useClass: MetricsRegistry },
   { provide: PROVIDER_IDENTITY, useClass: TrustedPayloadProviderIdentity },
   { provide: SqsGateway, useFactory: () => new SqsGateway(readSqsOptions()) },
   {

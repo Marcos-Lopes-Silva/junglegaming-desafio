@@ -2,19 +2,34 @@ import { EntityManager } from '@mikro-orm/postgresql';
 import {
   Controller,
   Get,
+  Header,
+  Inject,
   Logger,
   ServiceUnavailableException,
 } from '@nestjs/common';
-import { SqsGateway } from '@wagering/infrastructure';
+import { METRICS } from '@wagering/application';
+import { SqsGateway, type MetricsRegistry } from '@wagering/infrastructure';
 
+/**
+ * `retries_total`, `dlq_messages_total` e `outbox_lag_seconds` só são
+ * incrementados no worker, e cada processo tem seu próprio registry do
+ * `prom-client`. Por isso o worker também expõe `/metrics`.
+ */
 @Controller()
 export class WorkerController {
   private readonly logger = new Logger(WorkerController.name);
 
   constructor(
+    @Inject(METRICS) private readonly metrics: MetricsRegistry,
     private readonly em: EntityManager,
     private readonly sqs: SqsGateway,
   ) {}
+
+  @Get('metrics')
+  @Header('content-type', 'text/plain; version=0.0.4; charset=utf-8')
+  async scrape(): Promise<string> {
+    return this.metrics.metrics();
+  }
 
   @Get('health/live')
   live(): { status: 'ok' } {
