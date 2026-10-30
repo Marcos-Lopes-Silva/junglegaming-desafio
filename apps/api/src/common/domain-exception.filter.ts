@@ -6,6 +6,7 @@ import {
   HttpStatus,
   Logger,
 } from '@nestjs/common';
+import { ConnectionException } from '@mikro-orm/postgresql';
 import { DomainError } from '@wagering/domain';
 import type { Request, Response } from 'express';
 
@@ -45,6 +46,20 @@ export interface ErrorBody {
   failureCode: string;
   message: string;
   correlationId: string | undefined;
+}
+
+const TRANSIENT_CODES = new Set([
+  'ECONNREFUSED', 'ECONNRESET', 'ETIMEDOUT', 'EPIPE',
+  '57P01', // admin_shutdown
+  '57P03', // cannot_connect_now
+  '53300', // too_many_connections
+]);
+
+function isTransientInfraError(error: unknown): boolean {
+  if (error instanceof ConnectionException) return true;
+  const code = (error as { code?: string })?.code;
+  if (code && (TRANSIENT_CODES.has(code) || code.startsWith('08'))) return true;
+  return error instanceof Error && /timeout acquiring a connection|connection terminated/i.test(error.message);
 }
 
 @Catch()
@@ -112,6 +127,14 @@ export class DomainExceptionFilter implements ExceptionFilter {
             ? 'VALIDATION_FAILED'
             : 'HTTP_ERROR',
         message,
+      };
+    }
+
+    if (isTransientInfraError(exception)) {
+      return {
+        status: HttpStatus.SERVICE_UNAVAILABLE,
+        failureCode: 'TRANSIENT_FAILURE',
+        message: 'service temporarily unavailable, retry later',
       };
     }
 
