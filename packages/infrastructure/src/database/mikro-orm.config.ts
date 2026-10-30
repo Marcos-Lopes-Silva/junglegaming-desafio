@@ -3,6 +3,7 @@ import { defineConfig } from '@mikro-orm/postgresql';
 import { Migration0001Initial } from './migrations/Migration0001Initial.js';
 import { Migration0002ObservedBalance } from './migrations/Migration0002ObservedBalance.js';
 import { Migration0003Inbox } from './migrations/Migration0003Inbox.js';
+import { ENTITY_SCHEMAS } from './schemas.js';
 
 export interface DatabaseOptions {
   clientUrl: string;
@@ -32,8 +33,7 @@ export function readDatabaseOptions(
 export function buildOrmConfig(options: DatabaseOptions) {
   return defineConfig({
     clientUrl: options.clientUrl,
-    entities: [],
-    discovery: { warnWhenNoEntities: false },
+    entities: ENTITY_SCHEMAS,
     extensions: [Migrator],
     debug: options.debug ?? false,
     forceUtcTimezone: true,
