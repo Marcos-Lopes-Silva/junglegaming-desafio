@@ -258,6 +258,6 @@ Os motivos estão no [`ARCHITECTURE.md`](./ARCHITECTURE.md):
   passo;
 - **reversão parcial** — fora de escopo pelo enunciado.
 
-# Uso de IA
+## Uso de IA
 
-Usei ferramentas de IA na escrita do código, dos testes de carga e da documentação. Revisei, executei e validei todas as partes.
+Usei ferramentas de IA na escrita do código, dos testes de carga, da infra e da documentação. Revisei, executei e validei todas as partes.
