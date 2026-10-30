@@ -1,4 +1,5 @@
 import {
+  ConsumeWagerMessageUseCase,
   OpenWalletUseCase,
   type SubmitWagerTransactionInput,
   type SubmitWagerTransactionResult,
@@ -12,6 +13,7 @@ import {
 } from '@wagering/domain';
 import {
   FakeClock,
+  FakeInboxRepository,
   FakeLedgerAccountRepository,
   FakeLedgerRepository,
   FakeMetrics,
@@ -34,10 +36,12 @@ export const brl = (amount: string) => Money.from({ amount, currency: 'BRL' });
 export interface WageringHarness {
   submit: SubmitWagerTransactionUseCase;
   openWallet: OpenWalletUseCase;
+  consume: ConsumeWagerMessageUseCase;
   wallets: FakeWalletRepository;
   accounts: FakeLedgerAccountRepository;
   ledger: FakeLedgerRepository;
   transactions: FakeWagerTransactionRepository;
+  inbox: FakeInboxRepository;
   outbox: FakeOutboxRepository;
   metrics: FakeMetrics;
   clock: FakeClock;
@@ -50,6 +54,7 @@ export function buildWageringHarness(): WageringHarness {
   const accounts = new FakeLedgerAccountRepository();
   const ledger = new FakeLedgerRepository();
   const transactions = new FakeWagerTransactionRepository();
+  const inbox = new FakeInboxRepository();
   const outbox = new FakeOutboxRepository();
   const metrics = new FakeMetrics();
   const clock = new FakeClock();
@@ -76,10 +81,19 @@ export function buildWageringHarness(): WageringHarness {
   return {
     submit,
     openWallet: new OpenWalletUseCase(deps),
+    consume: new ConsumeWagerMessageUseCase({
+      inbox,
+      submit,
+      runner,
+      clock,
+      hasher,
+      metrics,
+    }),
     wallets,
     accounts,
     ledger,
     transactions,
+    inbox,
     outbox,
     metrics,
     clock,

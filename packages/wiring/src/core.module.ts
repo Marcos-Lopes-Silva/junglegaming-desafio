@@ -3,6 +3,7 @@ import { EntityManager } from '@mikro-orm/postgresql';
 import { Global, Module, type Provider } from '@nestjs/common';
 import {
   CLOCK,
+  ConsumeWagerMessageUseCase,
   GetWagerTransactionByExternalIdUseCase,
   GetWagerTransactionUseCase,
   GetWalletUseCase,
@@ -24,6 +25,7 @@ import {
   WagerTransactionApplier,
   type ClockPort,
   type IdGeneratorPort,
+  type InboxRepositoryPort,
   type LedgerAccountRepositoryPort,
   type LedgerRepositoryPort,
   type MetricsPort,
@@ -39,6 +41,7 @@ import {
   LedgerRepository,
   OutboxRepository,
   Sha256PayloadHasher,
+  SqsGateway,
   SystemClock,
   TransactionRunner,
   TrustedPayloadProviderIdentity,
@@ -47,6 +50,7 @@ import {
   WalletRepository,
   buildOrmConfig,
   readDatabaseOptions,
+  readSqsOptions,
 } from '@wagering/infrastructure';
 import { NoopMetrics } from './noop-metrics.js';
 
@@ -61,6 +65,7 @@ const adapters: Provider[] = [
   { provide: PAYLOAD_HASHER, useClass: Sha256PayloadHasher },
   { provide: METRICS, useClass: NoopMetrics },
   { provide: PROVIDER_IDENTITY, useClass: TrustedPayloadProviderIdentity },
+  { provide: SqsGateway, useFactory: () => new SqsGateway(readSqsOptions()) },
   {
     provide: TRANSACTION_RUNNER,
     useFactory: (em: EntityManager) => new TransactionRunner(em),
@@ -242,6 +247,33 @@ const useCases: Provider[] = [
     useFactory: (transactions: WagerTransactionRepositoryPort) =>
       new GetWagerTransactionByExternalIdUseCase(transactions),
     inject: [WAGER_TRANSACTION_REPOSITORY],
+  },
+  {
+    provide: ConsumeWagerMessageUseCase,
+    useFactory: (
+      inbox: InboxRepositoryPort,
+      submit: SubmitWagerTransactionUseCase,
+      runner: TransactionRunnerPort,
+      clock: ClockPort,
+      hasher: PayloadHasherPort,
+      metrics: MetricsPort,
+    ) =>
+      new ConsumeWagerMessageUseCase({
+        inbox,
+        submit,
+        runner,
+        clock,
+        hasher,
+        metrics,
+      }),
+    inject: [
+      INBOX_REPOSITORY,
+      SubmitWagerTransactionUseCase,
+      TRANSACTION_RUNNER,
+      CLOCK,
+      PAYLOAD_HASHER,
+      METRICS,
+    ],
   },
 ];
 

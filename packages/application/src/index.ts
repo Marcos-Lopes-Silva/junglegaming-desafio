@@ -9,3 +9,5 @@ export * from './wallet/reconcile-wallet.usecase.js';
 export * from './wagering/wager-transaction.applier.js';
 export * from './wagering/submit-wager-transaction.usecase.js';
 export * from './wagering/get-wager-transaction.usecase.js';
+
+export * from './messaging/consume-wager-message.usecase.js';

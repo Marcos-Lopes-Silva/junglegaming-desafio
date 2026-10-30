@@ -14,3 +14,7 @@ export * from './repositories/outbox.repository.js';
 
 export * from './canonical/canonical-json.js';
 export * from './system.js';
+
+export * from './sqs/sqs.client.js';
+export * from './sqs/message-envelope.js';
+export * from './sqs/wager-message.consumer.js';
