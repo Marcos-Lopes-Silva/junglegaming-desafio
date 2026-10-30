@@ -1,0 +1,18 @@
+{
+  "name": "@wagering/wiring",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@mikro-orm/nestjs": "^7.1.0",
+    "@mikro-orm/postgresql": "^7.2.5",
+    "@nestjs/common": "^12.3.2",
+    "@wagering/application": "workspace:*",
+    "@wagering/domain": "workspace:*",
+    "@wagering/infrastructure": "workspace:*"
+  }
+}
