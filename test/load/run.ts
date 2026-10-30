@@ -330,6 +330,16 @@ const dlq = await query('sum(dlq_messages_total)');
 const fmt = (value: number, digits = 2) =>
   Number.isNaN(value) ? 'n/d' : value.toFixed(digits);
 
+const [spreadP99, hotP99] = [phases[0]?.p99 ?? NaN, phases[1]?.p99 ?? NaN];
+const p99Remark =
+  hotP99 <= spreadP99
+    ? `O p99 não piora na fase concentrada (${fmt(spreadP99)} →
+${fmt(hotP99)} ms): a fila do lock limita quantas requisições rodam ao mesmo
+tempo e reduz a variância.`
+    : `Já o p99 vai de ${fmt(spreadP99)} ms para
+${fmt(hotP99)} ms, porque cada requisição espera na fila do lock pelas que
+chegaram antes.`;
+
 const report = `
 # Teste de carga
 
@@ -417,9 +427,7 @@ ledger depois da carga.
 **Custo do lock pessimista.** Concentrar toda a carga numa
 única wallet derruba o throughput para ${fmt(((phases[1]?.throughput ?? 0) / (phases[0]?.throughput ?? 1)) * 100, 0)}%,
 mas não para perto de zero, porque a seção crítica é curta: o lock cobre uma transação de poucos
-milissegundos, não a requisição inteira. A latência p99 inclusive *melhora* na
-fase concentrada, porque a fila do lock funciona como controle de admissão e
-reduz a variância.
+milissegundos, não a requisição inteira. ${p99Remark}
 
 **O gargalo é o publisher da outbox.** A API
 ingeriu ${samples.length} requisições em ${fmt(elapsedSeconds)} s, mas a outbox
@@ -434,8 +442,8 @@ Opções para melhorar, da mais vantajosa para a menos:
 1. **\`SendMessageBatch\`** no lugar de \`SendMessage\` — o SQS aceita 10
    mensagens por chamada, o que reduz as chamadas de rede em até 10×.
 2. **Lote maior e tick mais curto.** O limite de ${20} e o intervalo de 1 s
-   foram escolhidos para desenvolvimento, não medidos. Ambos são
-   configuráveis.
+   foram escolhidos para desenvolvimento, não medidos. O intervalo é
+   configurável (\`OUTBOX_PUBLISH_INTERVAL_MS\`); o lote é uma constante.
 3. **Mais réplicas de worker.** O \`FOR UPDATE SKIP LOCKED\` já permite isso;
    é a opção mais simples, mas a que rende menos por processo.
 
